@@ -131,7 +131,10 @@ router.get('/users/:mobile/expenses/unconfirmed', async (req, res) => {
                 userId: user._id
             }));
 
-        res.json(unconfirmedExpenses);
+        res.json({
+            count: unconfirmedExpenses.length,
+            expenses: unconfirmedExpenses
+        });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
