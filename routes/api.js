@@ -192,4 +192,51 @@ router.put('/expenses/:id/confirm', async (req, res) => {
     }
 });
 
+// @route   PUT /users/:mobile/expenses/:index/confirm
+// @desc    Confirm an expense by its index and mobile
+// @access  Public
+router.put('/users/:mobile/expenses/:index/confirm', async (req, res) => {
+    try {
+        const { mobile, index } = req.params;
+
+        // Find user with the matching mobile and expense with specific index & unconfirmed status
+        // and update confirmation to true
+        const user = await User.findOneAndUpdate(
+            {
+                mobile,
+                expenses: {
+                    $elemMatch: {
+                        index: parseInt(index),
+                        confirmation: false
+                    }
+                }
+            },
+            { $set: { 'expenses.$.confirmation': true } },
+            { new: true }
+        ).select({ expenses: { $elemMatch: { index: parseInt(index) } } }); // Return only the updated expense (optional optimization, but strict projection requires aggregation usually or careful filtering)
+
+        // Note: mongoose findOneAndUpdate returns the whole document by default (after update if new:true)
+        // If we want just the expense, we can filter it from the result or use aggregation, 
+        // but returning the updated user or finding the specific subdoc is easier.
+        // Let's stick to standard findOneAndUpdate without complex projection for now to be safe,
+        // or re-fetch/filter from result.
+
+        // Simpler approach compatible with previous code:
+        // Re-query to return specific object or just return success message. 
+        // The user likely wants the updated expense object.
+
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found, or Expense not found/already confirmed' });
+        }
+
+        // Extract the confirmed expense to return it
+        const confirmedExpense = user.expenses.find(exp => exp.index === parseInt(index));
+        res.json(confirmedExpense);
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;
