@@ -110,6 +110,25 @@ router.put('/users/:mobile/expenses/unconfirmed', async (req, res) => {
     }
 });
 
+// @route   GET /users/:mobile/expenses/count
+// @desc    Get total count of expenses for a specific user
+// @access  Public
+router.get('/users/:mobile/expenses/count', async (req, res) => {
+    try {
+        const { mobile } = req.params;
+        const user = await User.findOne({ mobile });
+
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        res.json({ count: user.expenses.length });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 // @route   GET /users/:mobile/expenses/unconfirmed
 // @desc    Get all unconfirmed expenses for a specific user
 // @access  Public
