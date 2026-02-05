@@ -50,22 +50,19 @@ router.put('/users', async (req, res) => {
 });
 
 // @route   GET /api/users/:mobile
-// @desc    Get user by mobile number
+// @desc    Check if user exists by mobile number
 // @access  Public
 router.get('/users/:mobile', async (req, res) => {
     try {
         const user = await User.findOne({ mobile: req.params.mobile });
 
         if (!user) {
-            return res.status(404).json({ msg: 'User not found' });
+            return res.json({ exists: false });
         }
 
-        res.json(user);
+        res.json({ exists: true });
     } catch (err) {
         console.error(err.message);
-        if (err.kind == 'ObjectId') {
-            return res.status(404).json({ msg: 'User not found' });
-        }
         res.status(500).send('Server Error');
     }
 });
