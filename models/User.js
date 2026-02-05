@@ -22,6 +22,9 @@ const ExpenseSchema = new mongoose.Schema({
     },confirmation:{
         type:Boolean,
         default:false
+    },index:{
+        type:Number,
+        required:true
     }
 });
 
