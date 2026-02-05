@@ -239,4 +239,43 @@ router.put('/users/:mobile/expenses/:index/confirm', async (req, res) => {
     }
 });
 
+// @route   PUT /users/:mobile/expenses/:index
+// @desc    Update expense details by index and mobile
+// @access  Public
+router.put('/users/:mobile/expenses/:index', async (req, res) => {
+    try {
+        const { mobile, index } = req.params;
+        const updates = req.body;
+
+        const user = await User.findOne({ mobile });
+
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        const expenseToUpdate = user.expenses.find(exp => exp.index === parseInt(index));
+
+        if (!expenseToUpdate) {
+            return res.status(404).json({ msg: 'Expense not found' });
+        }
+
+        // Update fields if they exist in the request body
+        if (updates.merchant) expenseToUpdate.merchant = updates.merchant;
+        if (updates.amount) expenseToUpdate.amount = updates.amount;
+        if (updates.date) expenseToUpdate.date = updates.date;
+        if (updates.type) expenseToUpdate.type = updates.type;
+        if (updates.payingEntity) expenseToUpdate.payingEntity = updates.payingEntity;
+        // Note: Confirmation is handled by a separate endpoint, but could be added here if needed.
+        // Keeping it separate as per previous specific request, but user didn't explicitly restrict it here.
+        // The prompt asked for "merchant, amount, date and payingEntity".
+
+        await user.save();
+        res.json(expenseToUpdate);
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;
