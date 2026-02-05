@@ -189,6 +189,35 @@ router.put('/expenses/:id/confirm', async (req, res) => {
     }
 });
 
+// @route   PUT /users/:mobile/expenses/confirm-all
+// @desc    Confirm ALL unconfirmed expenses for a specific user
+// @access  Public
+router.put('/users/:mobile/expenses/confirm-all', async (req, res) => {
+    try {
+        const { mobile } = req.params;
+
+        // Update all expenses where confirmation is false to true
+        const user = await User.findOneAndUpdate(
+            { mobile },
+            { $set: { "expenses.$[elem].confirmation": true } },
+            {
+                arrayFilters: [{ "elem.confirmation": false }],
+                new: true
+            }
+        );
+
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        res.json({ msg: 'All expenses confirmed', count: user.expenses.filter(e => e.confirmation).length });
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 // @route   PUT /users/:mobile/expenses/:index/confirm
 // @desc    Confirm an expense by its index and mobile
 // @access  Public
@@ -275,36 +304,6 @@ router.put('/users/:mobile/expenses/:index', async (req, res) => {
     }
 });
 
-// @route   PUT /users/:mobile/expenses/confirm-all
-// @desc    Confirm ALL unconfirmed expenses for a specific user
-// @access  Public
-router.put('/users/:mobile/expenses/confirm-all', async (req, res) => {
-    try {
-        const { mobile } = req.params;
 
-        // Update all expenses where confirmation is false to true
-        // Using arrayFilters would be efficient but findOneAndUpdate is easier with plain JS logic for nested arrays sometimes
-        // However, standard updateOne with array filters is best for all matches.
-
-        const user = await User.findOneAndUpdate(
-            { mobile },
-            { $set: { "expenses.$[elem].confirmation": true } },
-            {
-                arrayFilters: [{ "elem.confirmation": false }],
-                new: true
-            }
-        );
-
-        if (!user) {
-            return res.status(404).json({ msg: 'User not found' });
-        }
-
-        res.json({ msg: 'All expenses confirmed', count: user.expenses.filter(e => e.confirmation).length });
-
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-});
 
 module.exports = router;
