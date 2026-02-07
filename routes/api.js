@@ -33,8 +33,29 @@ router.put('/users', async (req, res) => {
             }
             if (expense) {
                 // expense can be a single object or an array of objects
-                const expensesToAdd = Array.isArray(expense) ? expense : [expense];
-                user.expenses.push(...expensesToAdd);
+                const expensesToProcess = Array.isArray(expense) ? expense : [expense];
+
+                expensesToProcess.forEach(exp => {
+                    if (exp.index !== undefined) {
+                        // Try to find existing expense with this index
+                        const existingExpense = user.expenses.find(e => e.index === exp.index);
+                        if (existingExpense) {
+                            // Update existing expense
+                            if (exp.merchant !== undefined) existingExpense.merchant = exp.merchant;
+                            if (exp.amount !== undefined) existingExpense.amount = exp.amount;
+                            if (exp.date !== undefined) existingExpense.date = exp.date;
+                            if (exp.type !== undefined) existingExpense.type = exp.type;
+                            if (exp.payingEntity !== undefined) existingExpense.payingEntity = exp.payingEntity;
+                            if (exp.confirmation !== undefined) existingExpense.confirmation = exp.confirmation;
+                        } else {
+                            // Add new expense with index
+                            user.expenses.push(exp);
+                        }
+                    } else {
+                        // No index provided, just push
+                        user.expenses.push(exp);
+                    }
+                });
             }
             await user.save();
             return res.json(user);
