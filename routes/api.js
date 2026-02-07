@@ -69,6 +69,9 @@ router.put('/users', async (req, res) => {
 // @route   GET /api/users/:mobile
 // @desc    Check if user exists by mobile number
 // @access  Public
+// @route   GET /api/users/:mobile
+// @desc    Check if user exists and return basic info
+// @access  Public
 router.get('/users/:mobile', async (req, res) => {
     try {
         const user = await User.findOne({ mobile: req.params.mobile });
@@ -77,7 +80,12 @@ router.get('/users/:mobile', async (req, res) => {
             return res.json({ exists: false });
         }
 
-        res.json({ exists: true });
+        res.json({
+            exists: true,
+            mobile: user.mobile,
+            name: user.name,
+            lastinvoice: user.lastinvoice
+        });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
