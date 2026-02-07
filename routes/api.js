@@ -306,4 +306,54 @@ router.put('/users/:mobile/expenses/:index', async (req, res) => {
 
 
 
+
+// @route   GET /users/:mobile/lastmessage
+// @desc    Get last message for a specific user
+// @access  Public
+router.get('/users/:mobile/lastmessage', async (req, res) => {
+    try {
+        const { mobile } = req.params;
+        const user = await User.findOne({ mobile });
+
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        res.json({ lastmessage: user.lastmessage || "" });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   PUT /users/:mobile/lastmessage
+// @desc    Update last message for a specific user
+// @access  Public
+router.put('/users/:mobile/lastmessage', async (req, res) => {
+    try {
+        const { mobile } = req.params;
+        const { lastmessage } = req.body;
+
+        // Note: Allowing empty string as a valid update if needed, but usually we want some content.
+        // If we want to allow clearing it, we should allow empty string.
+        if (lastmessage === undefined) {
+            return res.status(400).json({ msg: 'Please provide lastmessage' });
+        }
+
+        const user = await User.findOne({ mobile });
+
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        user.lastmessage = lastmessage;
+        await user.save();
+
+        res.json({ lastmessage: user.lastmessage });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;
