@@ -6,7 +6,14 @@ const User = require('../models/User');
 // @desc    Create or update user and add expense
 // @access  Public
 router.put('/users', async (req, res) => {
-    const { mobile, name, expense, lastinvoice } = req.body;
+    const { mobile, name, expense, expenses, lastinvoice } = req.body;
+
+
+
+    // Normalize expense/expenses to a single variable
+    const expenseData = expense || expenses;
+
+
 
     if (!mobile || !name) {
         return res.status(400).json({ msg: 'Please provide mobile number and name' });
@@ -31,9 +38,9 @@ router.put('/users', async (req, res) => {
                 if (lastinvoice.lastmessage !== undefined) user.lastinvoice.lastmessage = lastinvoice.lastmessage;
                 if (lastinvoice.step !== undefined) user.lastinvoice.step = lastinvoice.step;
             }
-            if (expense) {
+            if (expenseData) {
                 // expense can be a single object or an array of objects
-                const expensesToProcess = Array.isArray(expense) ? expense : [expense];
+                const expensesToProcess = Array.isArray(expenseData) ? expenseData : [expenseData];
 
                 expensesToProcess.forEach(exp => {
                     if (exp.index !== undefined) {
@@ -72,8 +79,8 @@ router.put('/users', async (req, res) => {
             newUserFields.lastinvoice = lastinvoice;
         }
 
-        if (expense) {
-            const expensesToAdd = Array.isArray(expense) ? expense : [expense];
+        if (expenseData) {
+            const expensesToAdd = Array.isArray(expenseData) ? expenseData : [expenseData];
             newUserFields.expenses = expensesToAdd;
         }
 
