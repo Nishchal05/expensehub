@@ -54,7 +54,13 @@ router.put('/users', async (req, res) => {
                             if (exp.type !== undefined) existingExpense.type = exp.type;
                             if (exp.payingEntity !== undefined) existingExpense.payingEntity = exp.payingEntity;
                             if (exp.confirmation !== undefined) existingExpense.confirmation = exp.confirmation;
-                            if (exp.category !== undefined) existingExpense.category = exp.category;
+                            if (exp.category !== undefined) {
+                                if (Array.isArray(exp.category)) {
+                                    existingExpense.category.push(...exp.category);
+                                } else {
+                                    existingExpense.category.push(exp.category);
+                                }
+                            }
                         } else {
                             // Add new expense with index
                             user.expenses.push(exp);
