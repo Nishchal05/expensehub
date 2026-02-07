@@ -6,7 +6,7 @@ const User = require('../models/User');
 // @desc    Create or update user and add expense
 // @access  Public
 router.put('/users', async (req, res) => {
-    const { mobile, name, expense } = req.body;
+    const { mobile, name, expense, lastinvoice } = req.body;
 
     if (!mobile || !name) {
         return res.status(400).json({ msg: 'Please provide mobile number and name' });
@@ -18,6 +18,11 @@ router.put('/users', async (req, res) => {
         if (user) {
             // User exists, update name if changed and add expenses
             user.name = name;
+
+            // Update lastinvoice if provided
+            if (lastinvoice) {
+                user.lastinvoice = lastinvoice;
+            }
             if (expense) {
                 // expense can be a single object or an array of objects
                 const expensesToAdd = Array.isArray(expense) ? expense : [expense];
@@ -33,6 +38,10 @@ router.put('/users', async (req, res) => {
             name,
             expenses: []
         };
+
+        if (lastinvoice) {
+            newUserFields.lastinvoice = lastinvoice;
+        }
 
         if (expense) {
             const expensesToAdd = Array.isArray(expense) ? expense : [expense];
@@ -320,10 +329,11 @@ router.get('/users/:mobile/lastinvoice', async (req, res) => {
             return res.status(404).json({ msg: 'User not found' });
         }
 
-        // Return the first element if it exists, otherwise default structure
-        const lastInvoiceData = user.lastinvoice && user.lastinvoice.length > 0
-            ? user.lastinvoice[0]
-            : { invoiceid: 0, lastmessage: "" };
+        // Return the lastinvoice object directly (default values handle empty case in schema usually)
+        // If it's undefined (e.g. old document), return default structure
+        const lastInvoiceData = user.lastinvoice
+            ? user.lastinvoice
+            : { invoiceid: 0, lastmessage: "", step: 0 };
 
         res.json(lastInvoiceData);
     } catch (err) {
@@ -338,7 +348,8 @@ router.get('/users/:mobile/lastinvoice', async (req, res) => {
 router.put('/users/:mobile/lastinvoice', async (req, res) => {
     try {
         const { mobile } = req.params;
-        const { invoiceid, lastmessage } = req.body;
+        // Allows updating via individual fields OR 'lastinvoice' object
+        const { invoiceid, lastmessage, step, lastinvoice } = req.body;
 
         const user = await User.findOne({ mobile });
 
@@ -346,19 +357,28 @@ router.put('/users/:mobile/lastinvoice', async (req, res) => {
             return res.status(404).json({ msg: 'User not found' });
         }
 
-        // Ensure we only have one item in the array
-        user.lastinvoice = [{
-            invoiceid: invoiceid !== undefined ? invoiceid : 0,
-            lastmessage: lastmessage !== undefined ? lastmessage : ""
-        }];
+        // Update lastinvoice if provided as a complete object
+        if (lastinvoice) {
+            user.lastinvoice = lastinvoice;
+        } else {
+            // Otherwise, update individual fields if they exist
+            if (!user.lastinvoice) {
+                user.lastinvoice = {};
+            }
+
+            if (invoiceid !== undefined) user.lastinvoice.invoiceid = invoiceid;
+            if (lastmessage !== undefined) user.lastinvoice.lastmessage = lastmessage;
+            if (step !== undefined) user.lastinvoice.step = step;
+        }
 
         await user.save();
 
-        res.json(user.lastinvoice[0]);
+        res.json(user.lastinvoice);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
     }
 });
+
 
 module.exports = router;
