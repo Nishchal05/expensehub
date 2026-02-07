@@ -21,7 +21,15 @@ router.put('/users', async (req, res) => {
 
             // Update lastinvoice if provided
             if (lastinvoice) {
-                user.lastinvoice = lastinvoice;
+                // Initialize if it doesn't exist
+                if (!user.lastinvoice) {
+                    user.lastinvoice = {};
+                }
+
+                // Merge fields
+                if (lastinvoice.invoiceid !== undefined) user.lastinvoice.invoiceid = lastinvoice.invoiceid;
+                if (lastinvoice.lastmessage !== undefined) user.lastinvoice.lastmessage = lastinvoice.lastmessage;
+                if (lastinvoice.step !== undefined) user.lastinvoice.step = lastinvoice.step;
             }
             if (expense) {
                 // expense can be a single object or an array of objects
