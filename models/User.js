@@ -18,7 +18,7 @@ const ExpenseSchema = new mongoose.Schema({
     },
     payingEntity:{
         type:String,
-        required:true
+        default:"not mentioned"
     },confirmation:{
         type:Boolean,
         default:false
