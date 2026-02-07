@@ -38,16 +38,11 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    lastinvoice:[{
-        invoiceid:{
-            type:Number,
-            default:0
-        },
-        lastmessage:{
-            type:String,
-            default:""
-        }
-    }],
+    lastinvoice: {
+        invoiceid: { type: Number, default: 0 },
+        lastmessage: { type: String, default: "" },
+        step: { type: Number, default: 0 }
+    },
     expenses: [ExpenseSchema]
 });
 
