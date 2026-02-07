@@ -311,6 +311,34 @@ router.put('/users/:mobile/expenses/:index/confirm', async (req, res) => {
     }
 });
 
+
+// @route   GET /users/:mobile/expenses/:index
+// @desc    Get an expense by its index and mobile
+// @access  Public
+router.get('/users/:mobile/expenses/:index', async (req, res) => {
+    try {
+        const { mobile, index } = req.params;
+
+        const user = await User.findOne({ mobile });
+
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        const expense = user.expenses.find(exp => exp.index === parseInt(index));
+
+        if (!expense) {
+            return res.status(404).json({ msg: 'Expense not found' });
+        }
+
+        res.json(expense);
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 // @route   PUT /users/:mobile/expenses/:index
 // @desc    Update expense details by index and mobile
 // @access  Public
