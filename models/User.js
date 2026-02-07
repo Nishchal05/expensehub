@@ -12,20 +12,24 @@ const ExpenseSchema = new mongoose.Schema({
     date: {
         type: Date,
         default: Date.now
-    },type:{
-        type:String,
-        required:true
+    }, type: {
+        type: String,
+        required: true
     },
-    payingEntity:{
-        type:String,
-        default:"not mentioned"
-    },confirmation:{
-        type:Boolean,
-        default:false
-    },index:{
-        type:Number,
-        required:true
-    }
+    payingEntity: {
+        type: String,
+        default: "not mentioned"
+    }, confirmation: {
+        type: Boolean,
+        default: false
+    }, index: {
+        type: Number,
+        required: true
+    }, category: [
+        {
+            type: String,
+        }
+    ]
 });
 
 const UserSchema = new mongoose.Schema({
