@@ -55,13 +55,7 @@ router.put('/users', async (req, res) => {
                             if (exp.type !== undefined) existingExpense.type = exp.type;
                             if (exp.payingEntity !== undefined) existingExpense.payingEntity = exp.payingEntity;
                             if (exp.confirmation !== undefined) existingExpense.confirmation = exp.confirmation;
-                            if (exp.category !== undefined) {
-                                if (Array.isArray(exp.category)) {
-                                    existingExpense.category.push(...exp.category);
-                                } else {
-                                    existingExpense.category.push(exp.category);
-                                }
-                            }
+                            if (exp.category !== undefined) existingExpense.category = exp.category;
                             processedExpenses.push(existingExpense);
                         } else {
                             // Add new expense with index
@@ -515,5 +509,42 @@ router.put('/users/:mobile/lastinvoice', async (req, res) => {
     }
 });
 
+
+
+// List of available categories
+const CATEGORIES = [
+    "Food & Dining",
+    "Entertainment",
+    "Travel & Transport",
+    "Rent & Utilities",
+    "Mobile, Internet & Communication",
+    "Groceries & Daily Needs",
+    "Office / Work Expenses",
+    "Medical & Healthcare",
+    "Bills & Subscriptions",
+    "Education & Learning"
+];
+
+// @route   POST /api/suggest-categories
+// @desc    Get 3 categories excluding the ones provided in the request body
+// @access  Public
+router.post('/suggest-categories', (req, res) => {
+    try {
+        const { currentCategories } = req.body;
+
+        // Filter out categories that are already present in the request
+        const availableCategories = CATEGORIES.filter(category =>
+            !currentCategories || !currentCategories.includes(category)
+        );
+
+        // Return the first 3 available categories
+        const suggestions = availableCategories.slice(0, 3);
+
+        res.json({ suggestions });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
 
 module.exports = router;
