@@ -41,6 +41,7 @@ router.put('/users', async (req, res) => {
             if (expenseData) {
                 // expense can be a single object or an array of objects
                 const expensesToProcess = Array.isArray(expenseData) ? expenseData : [expenseData];
+                const processedExpenses = [];
 
                 expensesToProcess.forEach(exp => {
                     if (exp.index !== undefined) {
@@ -61,18 +62,33 @@ router.put('/users', async (req, res) => {
                                     existingExpense.category.push(exp.category);
                                 }
                             }
+                            processedExpenses.push(existingExpense);
                         } else {
                             // Add new expense with index
                             user.expenses.push(exp);
+                            processedExpenses.push(user.expenses[user.expenses.length - 1]);
                         }
                     } else {
                         // No index provided, just push
                         user.expenses.push(exp);
+                        processedExpenses.push(user.expenses[user.expenses.length - 1]);
                     }
+                });
+
+                await user.save();
+                return res.json({
+                    mobile: user.mobile,
+                    name: user.name,
+                    lastinvoice: user.lastinvoice,
+                    expenses: processedExpenses
                 });
             }
             await user.save();
-            return res.json(user);
+            return res.json({
+                mobile: user.mobile,
+                name: user.name,
+                lastinvoice: user.lastinvoice
+            });
         }
 
         // Create new user
