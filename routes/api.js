@@ -54,9 +54,9 @@ router.put('/users', async (req, res) => {
                     if (exp.category) {
                         const cats = Array.isArray(exp.category) ? exp.category : [exp.category];
                         exp.category = cats.map(c => {
-                            if (typeof c === 'string') return { type: c };
-                            if (typeof c === 'object' && c.type) return c;
-                            return { type: String(c) };
+                            if (typeof c === 'string') return c;
+                            if (typeof c === 'object' && c.type) return c.type;
+                            return String(c);
                         });
                     }
 
@@ -122,9 +122,9 @@ router.put('/users', async (req, res) => {
                 if (exp.category) {
                     const cats = Array.isArray(exp.category) ? exp.category : [exp.category];
                     exp.category = cats.map(c => {
-                        if (typeof c === 'string') return { type: c };
-                        if (typeof c === 'object' && c.type) return c;
-                        return { type: String(c) };
+                        if (typeof c === 'string') return c;
+                        if (typeof c === 'object' && c.type) return c.type;
+                        return String(c);
                     });
                 }
             });
@@ -613,13 +613,23 @@ router.post('/users/:mobile/expenses/:index/categories', async (req, res) => {
         }
 
         // Add each new category
+        // Add each new category
         categories.forEach(cat => {
-            // Handle both string and object input (assuming schema expects objects with 'type' field)
-            // If the schema is [{ type: String }], we should push objects like { type: "name" }
+            // Schema is likely [String] or [{type: String}] where the inner object IS the string (Mongoose quirk)
+            // But error says "Cast to string failed for value { type: ... } (type Object)"
+            // This means it EXPECTS a String but got an Object.
+            // So `category` is indeed an array of Strings.
+            // The `User.js` definition `category: [ { type: String } ]` might actually be interpreted as `[String]` by Mongoose 
+            // if `type` is the only field and interpreted as the type definition? 
+            // Or maybe the user *changed* the schema to `[String]`?
+            // Regardless, the error is clear: it wants a String.
+
             if (typeof cat === 'string') {
-                expenseToUpdate.category.push({ type: cat });
-            } else if (typeof cat === 'object' && cat.type) {
                 expenseToUpdate.category.push(cat);
+            } else if (typeof cat === 'object' && cat.type) {
+                expenseToUpdate.category.push(cat.type);
+            } else {
+                expenseToUpdate.category.push(String(cat));
             }
         });
 
