@@ -584,7 +584,12 @@ router.post('/suggest-categories', (req, res) => {
 router.post('/users/:mobile/expenses/:index/categories', async (req, res) => {
     try {
         const { mobile, index } = req.params;
-        const { categories } = req.body;
+
+        // Handle both { categories: [...] } and [...] formats
+        let categories = req.body;
+        if (req.body.categories && Array.isArray(req.body.categories)) {
+            categories = req.body.categories;
+        }
 
         if (!categories || !Array.isArray(categories)) {
             return res.status(400).json({ msg: 'Please provide an array of categories' });
