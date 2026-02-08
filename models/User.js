@@ -34,7 +34,13 @@ const ExpenseSchema = new mongoose.Schema({
     customer: {
         type: String,
         default: "not mentioned"
-    },
+    },project:{
+        type: String,
+        default: "not mentioned"
+    },note:{
+        type: String,
+        default: "not mentioned"
+    }
 });
 
 const UserSchema = new mongoose.Schema({
