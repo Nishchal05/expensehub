@@ -91,9 +91,47 @@ router.put('/users', async (req, res) => {
             newUserFields.expenses = expensesToAdd;
         }
 
+
         user = new User(newUserFields);
         await user.save();
         res.json(user);
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   GET /api/users
+// @desc    Get user and specific expense based on mobile and index in body
+// @access  Public
+router.get('/users', async (req, res) => {
+    try {
+        const { mobile, name, expense } = req.body;
+
+        if (!mobile) {
+            return res.status(400).json({ msg: 'Please provide mobile number' });
+        }
+
+        const user = await User.findOne({ mobile });
+
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        // Find expense if index is provided
+        let targetExpense = null;
+        if (expense) {
+            const expenseData = Array.isArray(expense) ? expense[0] : expense; // Take first if array
+            if (expenseData && expenseData.index !== undefined) {
+                targetExpense = user.expenses.find(exp => exp.index === parseInt(expenseData.index));
+            }
+        }
+
+        res.json({
+            user,
+            targetExpense
+        });
 
     } catch (err) {
         console.error(err.message);
