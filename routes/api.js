@@ -1,11 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const fs = require('fs');
+
+function logError(msg) {
+    fs.appendFileSync('server_error.log', new Date().toISOString() + ': ' + msg + '\n');
+}
 
 // @route   PUT /api/users
 // @desc    Create or update user and add expense
 // @access  Public
 router.put('/users', async (req, res) => {
+    console.log('PUT /users request body:', JSON.stringify(req.body));
     const { mobile, name, expense, expenses, lastinvoice } = req.body;
 
 
@@ -44,6 +50,16 @@ router.put('/users', async (req, res) => {
                 const processedExpenses = [];
 
                 expensesToProcess.forEach(exp => {
+                    // Pre-process category for all expenses
+                    if (exp.category) {
+                        const cats = Array.isArray(exp.category) ? exp.category : [exp.category];
+                        exp.category = cats.map(c => {
+                            if (typeof c === 'string') return { type: c };
+                            if (typeof c === 'object' && c.type) return c;
+                            return { type: String(c) };
+                        });
+                    }
+
                     if (exp.index !== undefined) {
                         // Try to find existing expense with this index
                         const existingExpense = user.expenses.find(e => e.index === exp.index);
@@ -55,7 +71,7 @@ router.put('/users', async (req, res) => {
                             if (exp.type !== undefined) existingExpense.type = exp.type;
                             if (exp.payingEntity !== undefined) existingExpense.payingEntity = exp.payingEntity;
                             if (exp.confirmation !== undefined) existingExpense.confirmation = exp.confirmation;
-                            if (exp.category !== undefined) existingExpense.category = exp.category;
+                            if (exp.category !== undefined) existingExpense.category = exp.category; // Already processed
                             if (exp.customer !== undefined) existingExpense.customer = exp.customer;
                             if (exp.project !== undefined) existingExpense.project = exp.project;
                             if (exp.note !== undefined) existingExpense.note = exp.note;
@@ -101,6 +117,17 @@ router.put('/users', async (req, res) => {
 
         if (expenseData) {
             const expensesToAdd = Array.isArray(expenseData) ? expenseData : [expenseData];
+            // Fix categories in new expenses
+            expensesToAdd.forEach(exp => {
+                if (exp.category) {
+                    const cats = Array.isArray(exp.category) ? exp.category : [exp.category];
+                    exp.category = cats.map(c => {
+                        if (typeof c === 'string') return { type: c };
+                        if (typeof c === 'object' && c.type) return c;
+                        return { type: String(c) };
+                    });
+                }
+            });
             newUserFields.expenses = expensesToAdd;
         }
 
@@ -111,6 +138,7 @@ router.put('/users', async (req, res) => {
 
     } catch (err) {
         console.error(err.message);
+        logError('PUT /users Error: ' + err.message + '\nStack: ' + err.stack);
         res.status(500).send('Server Error');
     }
 });
@@ -544,6 +572,62 @@ router.post('/suggest-categories', (req, res) => {
         const suggestions = availableCategories.slice(0, 3);
 
         res.json({ suggestions });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   POST /api/users/:mobile/expenses/:index/categories
+// @desc    Add new categories to an existing expense
+// @access  Public
+router.post('/users/:mobile/expenses/:index/categories', async (req, res) => {
+    try {
+        const { mobile, index } = req.params;
+        const { categories } = req.body;
+
+        if (!categories || !Array.isArray(categories)) {
+            return res.status(400).json({ msg: 'Please provide an array of categories' });
+        }
+
+        const user = await User.findOne({ mobile });
+
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        const expenseToUpdate = user.expenses.find(exp => exp.index === parseInt(index));
+
+        if (!expenseToUpdate) {
+            return res.status(404).json({ msg: 'Expense not found' });
+        }
+
+        // Initialize category array if it doesn't exist
+        if (!expenseToUpdate.category) {
+            expenseToUpdate.category = [];
+        }
+
+        // Add each new category
+        categories.forEach(cat => {
+            // Handle both string and object input (assuming schema expects objects with 'type' field)
+            // If the schema is [{ type: String }], we should push objects like { type: "name" }
+            if (typeof cat === 'string') {
+                expenseToUpdate.category.push({ type: cat });
+            } else if (typeof cat === 'object' && cat.type) {
+                expenseToUpdate.category.push(cat);
+            }
+        });
+
+        await user.save();
+
+        // Return categories in a simple list format if that's what the user expects, 
+        // or just return the expense object (which will have {type: "name"} objects).
+        // The user asked "then it should [lunch, food, ...]" implying a list of strings.
+        // But the endpoint should probably return the updated expense structure. 
+        // Let's stick to returning the updated expense object as per convention, 
+        // possibly with a transformation if needed, but standard REST usually returns the resource.
+        res.json(expenseToUpdate);
+
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
