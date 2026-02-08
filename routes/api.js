@@ -129,8 +129,10 @@ router.get('/users', async (req, res) => {
         }
 
         res.json({
-            user,
-            targetExpense
+            mobile: user.mobile,
+            name: user.name,
+            lastinvoice: user.lastinvoice,
+            expense: targetExpense
         });
 
     } catch (err) {
