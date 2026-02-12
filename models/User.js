@@ -22,9 +22,6 @@ const ExpenseSchema = new mongoose.Schema({
     }, confirmation: {
         type: Boolean,
         default: false
-    }, index: {
-        type: Number,
-        required: true
     }, category: [
         {
             type: String,
@@ -54,7 +51,7 @@ const UserSchema = new mongoose.Schema({
         required: true
     },
     lastinvoice: {
-        invoiceid: { type: Number, default: 0 },
+        invoiceid: { type: String, default: 0 },
         lastmessage: { type: String, default: "" },
         step: { type: Number, default: 0 }
     },

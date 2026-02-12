@@ -60,9 +60,10 @@ router.put('/users', async (req, res) => {
                         });
                     }
 
-                    if (exp.index !== undefined) {
-                        // Try to find existing expense with this index
-                        const existingExpense = user.expenses.find(e => e.index === exp.index);
+                    if (exp._id) {
+                        // Try to find existing expense with this _id
+                        const existingExpense = user.expenses.id(exp._id);
+
                         if (existingExpense) {
                             // Update existing expense
                             if (exp.merchant !== undefined) existingExpense.merchant = exp.merchant;
@@ -77,12 +78,18 @@ router.put('/users', async (req, res) => {
                             if (exp.note !== undefined) existingExpense.note = exp.note;
                             processedExpenses.push(existingExpense);
                         } else {
-                            // Add new expense with index
+                            // Valid _id format provided but not found in subdocs? 
+                            // Could be error, but standard Rest PUT usually creates if not exists (upsert) implies using that ID? 
+                            // Mongoose won't let us easily "force" an _id on push unless we explicitly create the subdoc with it.
+                            // But usually usage is: if _id matches, update. If not, create new (and let mongo gen new _id).
+                            // User said "find we find expense through _id".
+                            // If _id is passed but not found, we'll treat as new expense.
+                            delete exp._id;
                             user.expenses.push(exp);
                             processedExpenses.push(user.expenses[user.expenses.length - 1]);
                         }
                     } else {
-                        // No index provided, just push
+                        // No _id provided, create new expense
                         user.expenses.push(exp);
                         processedExpenses.push(user.expenses[user.expenses.length - 1]);
                     }
@@ -160,12 +167,12 @@ router.get('/users', async (req, res) => {
             return res.status(404).json({ msg: 'User not found' });
         }
 
-        // Find expense if index is provided
+        // Find expense if _id is provided
         let targetExpense = null;
         if (expense) {
             const expenseData = Array.isArray(expense) ? expense[0] : expense; // Take first if array
-            if (expenseData && expenseData.index !== undefined) {
-                targetExpense = user.expenses.find(exp => exp.index === parseInt(expenseData.index));
+            if (expenseData && expenseData._id) {
+                targetExpense = user.expenses.id(expenseData._id);
             }
         }
 
@@ -359,45 +366,30 @@ router.put('/users/:mobile/expenses/confirm-all', async (req, res) => {
     }
 });
 
-// @route   PUT /users/:mobile/expenses/:index/confirm
-// @desc    Confirm an expense by its index and mobile
+// @route   PUT /users/:mobile/expenses/:expenseId/confirm
+// @desc    Confirm an expense by its _id and mobile
 // @access  Public
-router.put('/users/:mobile/expenses/:index/confirm', async (req, res) => {
+router.put('/users/:mobile/expenses/:expenseId/confirm', async (req, res) => {
     try {
-        const { mobile, index } = req.params;
+        const { mobile, expenseId } = req.params;
 
-        // Find user with the matching mobile and expense with specific index & unconfirmed status
+        // Find user with the matching mobile and expense with specific _id & unconfirmed status
         // and update confirmation to true
         const user = await User.findOneAndUpdate(
             {
                 mobile,
-                expenses: {
-                    $elemMatch: {
-                        index: parseInt(index),
-                        confirmation: false
-                    }
-                }
+                'expenses._id': expenseId
             },
             { $set: { 'expenses.$.confirmation': true } },
             { new: true }
-        ).select({ expenses: { $elemMatch: { index: parseInt(index) } } }); // Return only the updated expense (optional optimization, but strict projection requires aggregation usually or careful filtering)
-
-        // Note: mongoose findOneAndUpdate returns the whole document by default (after update if new:true)
-        // If we want just the expense, we can filter it from the result or use aggregation, 
-        // but returning the updated user or finding the specific subdoc is easier.
-        // Let's stick to standard findOneAndUpdate without complex projection for now to be safe,
-        // or re-fetch/filter from result.
-
-        // Simpler approach compatible with previous code:
-        // Re-query to return specific object or just return success message. 
-        // The user likely wants the updated expense object.
+        );
 
         if (!user) {
-            return res.status(404).json({ msg: 'User not found, or Expense not found/already confirmed' });
+            return res.status(404).json({ msg: 'User not found, or Expense not found' });
         }
 
         // Extract the confirmed expense to return it
-        const confirmedExpense = user.expenses.find(exp => exp.index === parseInt(index));
+        const confirmedExpense = user.expenses.id(expenseId);
         res.json(confirmedExpense);
 
     } catch (err) {
@@ -407,12 +399,12 @@ router.put('/users/:mobile/expenses/:index/confirm', async (req, res) => {
 });
 
 
-// @route   GET /users/:mobile/expenses/:index
-// @desc    Get an expense by its index and mobile
+// @route   GET /users/:mobile/expenses/:expenseId
+// @desc    Get an expense by its _id and mobile
 // @access  Public
-router.get('/users/:mobile/expenses/:index', async (req, res) => {
+router.get('/users/:mobile/expenses/:expenseId', async (req, res) => {
     try {
-        const { mobile, index } = req.params;
+        const { mobile, expenseId } = req.params;
 
         const user = await User.findOne({ mobile });
 
@@ -420,7 +412,7 @@ router.get('/users/:mobile/expenses/:index', async (req, res) => {
             return res.status(404).json({ msg: 'User not found' });
         }
 
-        const expense = user.expenses.find(exp => exp.index === parseInt(index));
+        const expense = user.expenses.id(expenseId);
 
         if (!expense) {
             return res.status(404).json({ msg: 'Expense not found' });
@@ -434,12 +426,12 @@ router.get('/users/:mobile/expenses/:index', async (req, res) => {
     }
 });
 
-// @route   PUT /users/:mobile/expenses/:index
-// @desc    Update expense details by index and mobile
+// @route   PUT /users/:mobile/expenses/:expenseId
+// @desc    Update expense details by _id and mobile
 // @access  Public
-router.put('/users/:mobile/expenses/:index', async (req, res) => {
+router.put('/users/:mobile/expenses/:expenseId', async (req, res) => {
     try {
-        const { mobile, index } = req.params;
+        const { mobile, expenseId } = req.params;
         const updates = req.body;
 
         const user = await User.findOne({ mobile });
@@ -448,7 +440,7 @@ router.put('/users/:mobile/expenses/:index', async (req, res) => {
             return res.status(404).json({ msg: 'User not found' });
         }
 
-        const expenseToUpdate = user.expenses.find(exp => exp.index === parseInt(index));
+        const expenseToUpdate = user.expenses.id(expenseId);
 
         if (!expenseToUpdate) {
             return res.status(404).json({ msg: 'Expense not found' });
@@ -460,9 +452,6 @@ router.put('/users/:mobile/expenses/:index', async (req, res) => {
         if (updates.date) expenseToUpdate.date = updates.date;
         if (updates.type) expenseToUpdate.type = updates.type;
         if (updates.payingEntity) expenseToUpdate.payingEntity = updates.payingEntity;
-        // Note: Confirmation is handled by a separate endpoint, but could be added here if needed.
-        // Keeping it separate as per previous specific request, but user didn't explicitly restrict it here.
-        // The prompt asked for "merchant, amount, date and payingEntity".
 
         await user.save();
         res.json(expenseToUpdate);
@@ -561,12 +550,42 @@ const CATEGORIES = [
 // @access  Public
 router.post('/suggest-categories', (req, res) => {
     try {
-        const { currentCategories } = req.body;
+        // Initialize with empty array if parsing fails
+        let currentCategories = [];
+
+        // Handle raw array input
+        if (Array.isArray(req.body)) {
+            currentCategories = req.body;
+        } else if (req.body.currentCategories && Array.isArray(req.body.currentCategories)) {
+            currentCategories = req.body.currentCategories;
+        } else {
+            // Fallback: try to convert object values to array if it looks like an array-object
+            if (typeof req.body === 'object' && req.body !== null) {
+                // heuristic: if keys are "0", "1"... 
+                // But safer to just empty or log warning. 
+                // Let's just assume empty if not array.
+                // Actually, let's try Object.values() just in case it's {'0':'a','1':'b'}
+                const values = Object.values(req.body);
+                if (values.length > 0 && typeof values[0] === 'string') {
+                    currentCategories = values;
+                } else {
+                    // Fallback to keys if values are empty strings (urlencoded without values)
+                    // e.g. "Food & Dining=&Entertainment=" -> { "Food & Dining": "", "Entertainment": "" }
+                    const keys = Object.keys(req.body);
+                    if (keys.length > 0 && keys.length < 20) { // arbitrary sanity check
+                        currentCategories = keys;
+                    }
+                }
+            }
+        }
+
 
         // Filter out categories that are already present in the request
-        const availableCategories = CATEGORIES.filter(category =>
-            !currentCategories || !currentCategories.includes(category)
-        );
+        const availableCategories = CATEGORIES.filter(category => {
+            const excluded = currentCategories && currentCategories.includes(category);
+            // console.log(`Category: ${category}, Excluded: ${excluded}`);
+            return !excluded;
+        });
 
         // Return the first 3 available categories
         const suggestions = availableCategories.slice(0, 3);
@@ -578,12 +597,12 @@ router.post('/suggest-categories', (req, res) => {
     }
 });
 
-// @route   POST /api/users/:mobile/expenses/:index/categories
-// @desc    Add new categories to an existing expense
+// @route   POST /api/users/:mobile/expenses/:expenseId/categories
+// @desc    Add new categories to an existing expense by _id
 // @access  Public
-router.post('/users/:mobile/expenses/:index/categories', async (req, res) => {
+router.post('/users/:mobile/expenses/:expenseId/categories', async (req, res) => {
     try {
-        const { mobile, index } = req.params;
+        const { mobile, expenseId } = req.params;
 
         // Handle both { categories: [...] } and [...] formats
         let categories = req.body;
@@ -601,7 +620,7 @@ router.post('/users/:mobile/expenses/:index/categories', async (req, res) => {
             return res.status(404).json({ msg: 'User not found' });
         }
 
-        const expenseToUpdate = user.expenses.find(exp => exp.index === parseInt(index));
+        const expenseToUpdate = user.expenses.id(expenseId);
 
         if (!expenseToUpdate) {
             return res.status(404).json({ msg: 'Expense not found' });
@@ -613,17 +632,7 @@ router.post('/users/:mobile/expenses/:index/categories', async (req, res) => {
         }
 
         // Add each new category
-        // Add each new category
         categories.forEach(cat => {
-            // Schema is likely [String] or [{type: String}] where the inner object IS the string (Mongoose quirk)
-            // But error says "Cast to string failed for value { type: ... } (type Object)"
-            // This means it EXPECTS a String but got an Object.
-            // So `category` is indeed an array of Strings.
-            // The `User.js` definition `category: [ { type: String } ]` might actually be interpreted as `[String]` by Mongoose 
-            // if `type` is the only field and interpreted as the type definition? 
-            // Or maybe the user *changed* the schema to `[String]`?
-            // Regardless, the error is clear: it wants a String.
-
             if (typeof cat === 'string') {
                 expenseToUpdate.category.push(cat);
             } else if (typeof cat === 'object' && cat.type) {
@@ -635,12 +644,6 @@ router.post('/users/:mobile/expenses/:index/categories', async (req, res) => {
 
         await user.save();
 
-        // Return categories in a simple list format if that's what the user expects, 
-        // or just return the expense object (which will have {type: "name"} objects).
-        // The user asked "then it should [lunch, food, ...]" implying a list of strings.
-        // But the endpoint should probably return the updated expense structure. 
-        // Let's stick to returning the updated expense object as per convention, 
-        // possibly with a transformation if needed, but standard REST usually returns the resource.
         res.json(expenseToUpdate);
 
     } catch (err) {
